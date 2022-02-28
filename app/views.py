@@ -8,7 +8,8 @@ import os
 from app import app
 from flask import render_template, request, redirect, url_for, flash, session, abort
 from werkzeug.utils import secure_filename
-
+from .forms import UploadForm
+from .config import Config
 
 ###
 # Routing for your application.
@@ -32,15 +33,25 @@ def upload():
         abort(401)
 
     # Instantiate your form class
+    form = UploadForm()
 
     # Validate file upload on submit
     if request.method == 'POST':
-        # Get file data and save to your uploads folder
-
+    	if form.validate_on_submit():
+           # Get file data and save to your uploads folder
+           image = form.image.data
+           filename = secure_filename(image.filename)
+           image.save(os.path.join(app.config['UPLOAD_FOLDER'],filename))
         flash('File Saved', 'success')
         return redirect(url_for('home'))
 
-    return render_template('upload.html')
+    return render_template('upload.html', form=form)
+
+
+@app.route('/uploads/<filename>')
+def get_image(filename):
+    root_dir = os.getcwd()
+    return send_from_directory(os.path.join(root_dir,app.config['UPLOAD_FOLDER']),filename)
 
 
 @app.route('/login', methods=['POST', 'GET'])
@@ -63,6 +74,24 @@ def logout():
     flash('You were logged out', 'success')
     return redirect(url_for('home'))
 
+
+def get_uploaded_images():
+    rootdir = os.getcwd()
+    print(rootdir)
+    flst = []
+    for subdir, dirs, files in os.walk(rootdir + '/uploads'):
+        for img in files:
+            #flst.append(img)
+            if image!=".gitkeep":
+                flst.append(img)
+    return flst
+
+@app.route('/files')
+def files():
+    if not session.get('logged_in'):
+        abort(401)
+    img_lst = get_uploaded_images()
+    return render_template('files.html',img_lst=img_lst)
 
 ###
 # The functions below should be applicable to all Flask apps.
